@@ -14,3 +14,13 @@
 ```cmd
 apimtemplate.exe extract --extractorConfig extractorparams.json
 ```
+
+```cmd
+bicep decompile example.json
+```
+
+-->
+
+```cmd
+.\bicep-decompile.ps1 -Folder extractor
+```

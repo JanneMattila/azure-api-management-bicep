@@ -1,0 +1,99 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string",
+      "metadata": {
+        "description": "Location for all resources."
+      }
+    }
+  },
+  "variables": {
+    "logicAppName": "products-handler"
+  },
+  "resources": [
+    {
+      "name": "[variables('logicAppName')]",
+      "type": "Microsoft.Logic/workflows",
+      "apiVersion": "2019-05-01",
+      "location": "[parameters('location')]",
+      "properties": {
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+          },
+          "triggers": {
+            "manual": {
+              "type": "Request",
+              "kind": "Http",
+              "inputs": {
+                "schema": {
+                }
+              }
+            }
+          },
+          "actions": {
+            "Response": {
+              "runAfter": {
+              },
+              "type": "Response",
+              "kind": "Http",
+              "inputs": {
+                "body": [
+                  {
+                    "id": 1,
+                    "name": "Product 1"
+                  },
+                  {
+                    "id": 2,
+                    "name": "Product 2"
+                  }
+                ],
+                "headers": {
+                  "Content-type": "application/json"
+                },
+                "statusCode": 200
+              }
+            }
+          },
+          "outputs": {
+          }
+        },
+        "parameters": {
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "name": {
+      "type": "string",
+      "value": "[variables('logicAppName')]"
+    },
+    "logicApp": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Logic/workflows', variables('logicAppName'))]"
+    },
+    "sig": {
+      "type": "string",
+      "value": "[listCallbackURL(concat(resourceId('Microsoft.Logic/workflows', variables('logicAppName')), '/triggers/manual'), '2019-05-01').queries.sig]"
+    },
+    "endpoint": {
+      "type": "string",
+      "value": "[concat(reference(resourceId('Microsoft.Logic/workflows', variables('logicAppName'))).accessEndpoint, '/triggers')]"
+    },
+    // To debug these good output values to 
+    // check in resource group deployment history 
+    // at the Azure Portal
+    "fullLogicAppObject": {
+      "type": "object",
+      "value": "[reference(resourceId('Microsoft.Logic/workflows', variables('logicAppName')), '2019-05-01', 'Full')]"
+    },
+    "fullListCallbackURLObject": {
+      "type": "object",
+      "value": "[listCallbackURL(concat(resourceId('Microsoft.Logic/workflows', variables('logicAppName')), '/triggers/manual'), '2019-05-01')]"
+    }
+  }
+}

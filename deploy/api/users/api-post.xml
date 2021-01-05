@@ -1,0 +1,21 @@
+<policies>
+    <inbound>
+        <base />
+        <set-header name="Ocp-Apim-Subscription-Key" exists-action="delete" />
+        <set-method>POST</set-method>
+        <rewrite-uri template="/manual/paths/invoke?api-version=2019-05-01&amp;sp=/triggers/manual/run&amp;sv=1.0&amp;sig={{users-logic-app-sig}}" />
+        <set-backend-service backend-id="usersLogicAppBackend" />
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <set-header name="X-UserValidation-Policy-Example" exists-action="override">
+            <value>v1</value>
+        </set-header>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

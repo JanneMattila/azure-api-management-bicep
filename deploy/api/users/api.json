@@ -1,0 +1,148 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "apimName": {
+      "type": "string",
+      "metadata": {
+        "description": "API Management name."
+      }
+    },
+    "templateUrl": {
+      "type": "string",
+      "metadata": {
+        "description": "Storage account container base url for deployment templates"
+      }
+    },
+    "templateToken": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Storage account access token for accessing templates"
+      }
+    },
+    "location": {
+      "type": "string",
+      "metadata": {
+        "description": "Location for all resources."
+      }
+    }
+  },
+  "variables": {
+    "apiName": "users",
+    "apiPath": "users",
+    "logicAppKeyName": "users-logic-app-sig",
+    "logicAppBackendName": "usersLogicAppBackend",
+    "logicAppTemplate": "usersLogicAppBackendTemplate",
+
+    "apiResourceName": "[concat(parameters('apimName'), '/', variables('apiName'))]",
+    "apiResourceId": "[resourceId('Microsoft.ApiManagement/service/apis', parameters('apimName'), variables('apiName'))]",
+
+    "apiGetResourceName": "[concat(variables('apiResourceName'), '/get')]",
+    "apiGetResourceId": "[resourceId('Microsoft.ApiManagement/service/apis/operations', parameters('apimName'), variables('apiName'), 'get')]"
+  },
+  "resources": [
+    {
+      "name": "[variables('logicAppTemplate')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-10-01",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(parameters('templateUrl'), 'api/users/logicapp.json', parameters('templateToken'))]"
+        },
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          }
+        }
+      }
+    },
+    {
+      "name": "[concat(parameters('apimName'), '/', variables('logicAppKeyName'))]",
+      "type": "Microsoft.ApiManagement/service/properties",
+      "apiVersion": "2019-01-01",
+      "properties": {
+        "secret": true,
+        "displayName": "[variables('logicAppKeyName')]",
+        "value": "[reference(resourceId('Microsoft.Resources/deployments', variables('logicAppTemplate'))).outputs.sig.value]"
+      }
+    },
+    {
+      "name": "[variables('apiResourceName')]",
+      "type": "Microsoft.ApiManagement/service/apis",
+      "apiVersion": "2019-01-01",
+      "properties": {
+        "displayName": "Users",
+        "description": "Users API - User validation service",
+        "path": "[variables('apiPath')]",
+        "subscriptionRequired": false,
+        "protocols": [
+          "https"
+        ]
+      },
+      "dependsOn": [
+        "[variables('logicAppTemplate')]"
+      ]
+    },
+    {
+      "name": "[concat(parameters('apimName'), '/', variables('logicAppBackendName'))]",
+      "type": "Microsoft.ApiManagement/service/backends",
+      "apiVersion": "2019-01-01",
+      "properties": {
+        "description": "[reference(resourceId('Microsoft.Resources/deployments', variables('logicAppTemplate'))).outputs.name.value]",
+        "resourceId": "[concat('https://management.azure.com',reference(resourceId('Microsoft.Resources/deployments', variables('logicAppTemplate'))).outputs.logicApp.value)]",
+        "url": "[reference(resourceId('Microsoft.Resources/deployments', variables('logicAppTemplate'))).outputs.endpoint.value]",
+        "protocol": "http"
+      },
+      "dependsOn": [
+        "[variables('logicAppTemplate')]"
+      ]
+    },
+    {
+      "name": "[variables('apiGetResourceName')]",
+      "type": "Microsoft.ApiManagement/service/apis/operations",
+      "apiVersion": "2018-01-01",
+      "properties": {
+        "displayName": "Validate user",
+        "method": "POST",
+        "urlTemplate": "/",
+        "templateParameters": [
+        ],
+        "description": "Validates user",
+        "responses": [
+          {
+            "statusCode": 200,
+            "description": "OK",
+            "headers": [
+            ],
+            "representations": [
+              {
+                "contentType": "application/json",
+                "sample": "{\r\n    \"summary\": \"User validated succesfully\"\r\n}"
+              }
+            ]
+          }
+        ]
+      },
+      "resources": [
+        {
+          "name": "policy",
+          "type": "policies",
+          "apiVersion": "2019-01-01",
+          "properties": {
+            "value": "[concat(parameters('templateUrl'), 'api/users/api-post.xml', parameters('templateToken'))]",
+            "format": "rawxml-link"
+          },
+          "dependsOn": [
+            "[variables('apiGetResourceId')]",
+            "[resourceId('Microsoft.ApiManagement/service/properties', parameters('apimName'), variables('logicAppKeyName'))]",
+            "[resourceId('Microsoft.ApiManagement/service/backends', parameters('apimName'), variables('logicAppBackendName'))]"
+          ]
+        }
+      ],
+      "dependsOn": [
+        "[variables('apiResourceId')]"
+      ]
+    }
+  ]
+}

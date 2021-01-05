@@ -1,0 +1,118 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "apimName": {
+      "type": "string",
+      "metadata": {
+        "description": "API Management name."
+      }
+    },
+    "templateUrl": {
+      "type": "string",
+      "metadata": {
+        "description": "Storage account container base url for deployment templates"
+      }
+    },
+    "templateToken": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Storage account access token for accessing templates"
+      }
+    },
+    "location": {
+      "type": "string",
+      "metadata": {
+        "description": "Location for all resources."
+      }
+    }
+  },
+  "variables": {
+    "apiName": "products",
+    "apiPath": "products",
+    "logicAppKeyName": "products-logic-app-sig",
+    "logicAppBackendName": "productsLogicAppBackend",
+    "logicAppTemplate": "productsLogicAppBackendTemplate",
+
+    "apiResourceName": "[concat(parameters('apimName'), '/', variables('apiName'))]",
+
+    "apiGetResourceId": "[resourceId('Microsoft.ApiManagement/service/apis/operations', parameters('apimName'), variables('apiName'), 'get')]",
+    "apiGetResourcePolicyName": "[concat(parameters('apimName'), '/', variables('apiName'), '/get/policy')]"
+  },
+  "resources": [
+    {
+      "name": "[variables('logicAppTemplate')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-10-01",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(parameters('templateUrl'), 'api/products/logicapp.json', parameters('templateToken'))]"
+        },
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          }
+        }
+      }
+    },
+    {
+      "name": "[concat(parameters('apimName'), '/', variables('logicAppKeyName'))]",
+      "type": "Microsoft.ApiManagement/service/properties",
+      "apiVersion": "2019-01-01",
+      "properties": {
+        "secret": true,
+        "displayName": "[variables('logicAppKeyName')]",
+        "value": "[reference(resourceId('Microsoft.Resources/deployments', variables('logicAppTemplate'))).outputs.sig.value]"
+      }
+    },
+    {
+      "name": "[variables('apiResourceName')]",
+      "type": "Microsoft.ApiManagement/service/apis",
+      "apiVersion": "2019-01-01",
+      "properties": {
+        "displayName": "Products",
+        "description": "Products API - Product validation service",
+        "path": "[variables('apiPath')]",
+        "subscriptionRequired": false,
+        "protocols": [
+          "https"
+        ],
+        "value": "[concat(parameters('templateUrl'), 'api/products/products.yaml', parameters('templateToken'))]",
+        "format": "openapi-link",
+        "apiType": "http"
+      },
+      "dependsOn": [
+        "[variables('logicAppTemplate')]"
+      ]
+    },
+    {
+      "name": "[concat(parameters('apimName'), '/', variables('logicAppBackendName'))]",
+      "type": "Microsoft.ApiManagement/service/backends",
+      "apiVersion": "2019-01-01",
+      "properties": {
+        "description": "[reference(resourceId('Microsoft.Resources/deployments', variables('logicAppTemplate'))).outputs.name.value]",
+        "resourceId": "[concat('https://management.azure.com',reference(resourceId('Microsoft.Resources/deployments', variables('logicAppTemplate'))).outputs.logicApp.value)]",
+        "url": "[reference(resourceId('Microsoft.Resources/deployments', variables('logicAppTemplate'))).outputs.endpoint.value]",
+        "protocol": "http"
+      },
+      "dependsOn": [
+        "[variables('logicAppTemplate')]"
+      ]
+    },
+    {
+      "name": "[variables('apiGetResourcePolicyName')]",
+      "type": "Microsoft.ApiManagement/service/apis/operations/policies",
+      "apiVersion": "2019-01-01",
+      "properties": {
+        "value": "[concat(parameters('templateUrl'), 'api/products/api-get.xml', parameters('templateToken'))]",
+        "format": "rawxml-link"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ApiManagement/service/apis', parameters('apimName'), variables('apiName'))]",
+        "[resourceId('Microsoft.ApiManagement/service/properties', parameters('apimName'), variables('logicAppKeyName'))]",
+        "[resourceId('Microsoft.ApiManagement/service/backends', parameters('apimName'), variables('logicAppBackendName'))]"
+      ]
+    }
+  ]
+}

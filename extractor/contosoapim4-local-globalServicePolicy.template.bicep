@@ -1,0 +1,9 @@
+param ApimServiceName string
+
+resource ApimServiceName_policy 'Microsoft.ApiManagement/service/policies@2019-01-01' = {
+  properties: {
+    value: '<!--\n    IMPORTANT:\n    - Policy elements can appear only within the <inbound>, <outbound>, <backend> section elements.\n    - Only the <forward-request> policy element can appear within the <backend> section element.\n    - To apply a policy to the incoming request (before it is forwarded to the backend service), place a corresponding policy element within the <inbound> section element.\n    - To apply a policy to the outgoing response (before it is sent back to the caller), place a corresponding policy element within the <outbound> section element.\n    - To add a policy position the cursor at the desired insertion point and click on the round button associated with the policy.\n    - To remove a policy, delete the corresponding policy statement from the policy document.\n    - Policies are applied in the order of their appearance, from the top down.\n-->\r\n<policies>\r\n\t<inbound>\r\n\t\t<cors allow-credentials="false">\r\n\t\t\t<allowed-origins>\r\n\t\t\t\t<origin>*</origin>\r\n\t\t\t</allowed-origins>\r\n\t\t\t<allowed-methods preflight-result-max-age="300">\r\n\t\t\t\t<method>*</method>\r\n\t\t\t</allowed-methods>\r\n\t\t\t<allowed-headers>\r\n\t\t\t\t<header>*</header>\r\n\t\t\t</allowed-headers>\r\n\t\t\t<expose-headers>\r\n\t\t\t\t<header>*</header>\r\n\t\t\t</expose-headers>\r\n\t\t</cors>\r\n\t</inbound>\r\n\t<backend>\r\n\t\t<forward-request />\r\n\t</backend>\r\n\t<outbound />\r\n\t<on-error />\r\n</policies>'
+    format: 'rawxml'
+  }
+  name: '${ApimServiceName}/policy'
+}

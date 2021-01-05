@@ -31,18 +31,6 @@
         "description": "Location for all resources."
       }
     },
-    "sharedTemplatesUrl": {
-      "type": "string",
-      "metadata": {
-        "description": "Storage account container base url for deployment templates"
-      }
-    },
-    "sharedTemplatesToken": {
-      "type": "securestring",
-      "metadata": {
-        "description": "Storage account access token for accessing templates"
-      }
-    },
     "templateUrl": {
       "type": "string",
       "metadata": {
@@ -106,28 +94,6 @@
           },
           "location": {
             "value": "[parameters('location')]"
-          }
-        }
-      },
-      "dependsOn": [
-        "[parameters('apimName')]"
-      ]
-    },
-    {
-      "name": "apiProductsTemplate",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2019-10-01",
-      "properties": {
-        "mode": "Incremental",
-        "templateLink": {
-          "uri": "[concat(parameters('sharedTemplatesUrl'), 'resources/integrations/filecopy.json', parameters('sharedTemplatesToken'))]"
-        },
-        "parameters": {
-          "storageLeft": {
-            "value": "[parameters('apimName')]"
-          },
-          "storageRight": {
-            "value": "[parameters('templateUrl')]"
           }
         }
       },

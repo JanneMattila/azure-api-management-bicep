@@ -115,3 +115,8 @@ $apimGateway = $result.Outputs.apimGateway.value
 # Publish variable to the Azure DevOps agents so that they
 # can be used in follow-up tasks such as application deployment
 Write-Host "##vso[task.setvariable variable=Custom.APIMGateway;]$apimGateway"
+
+if (!$PreserveDeploymentContainer.IsPresent) {
+    Write-Host "After successful deployment removing the deployment storage container..."
+    Remove-AzStorageContainer -Name $DeploymentContainer -Force
+}

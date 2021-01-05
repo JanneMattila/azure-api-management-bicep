@@ -10,26 +10,26 @@
     },
     "publisherEmail": {
       "type": "string",
-      "defaultValue": "admin@contoso.com",
       "minLength": 1,
       "metadata": {
         "description": "The email address of the owner of the service"
-      }
+      },
+      "defaultValue": "admin@contoso.com"
     },
     "publisherName": {
       "type": "string",
-      "defaultValue": "Contoso",
       "minLength": 1,
       "metadata": {
         "description": "The name of the owner of the service"
-      }
+      },
+      "defaultValue": "Contoso"
     },
     "location": {
       "type": "string",
-      "defaultValue": "[resourceGroup().location]",
       "metadata": {
         "description": "Location for all resources."
-      }
+      },
+      "defaultValue": "[resourceGroup().location]"
     },
     "templateUrl": {
       "type": "string",
@@ -38,18 +38,18 @@
       }
     },
     "templateToken": {
-      "type": "securestring",
+      "type": "secureString",
       "metadata": {
         "description": "Storage account access token for accessing templates"
       }
     }
   },
-  "variables": {},
+  "functions": [],
   "resources": [
     {
-      "name": "[parameters('apimName')]",
       "type": "Microsoft.ApiManagement/service",
       "apiVersion": "2019-01-01",
+      "name": "[parameters('apimName')]",
       "location": "[parameters('location')]",
       "sku": {
         "name": "Consumption"
@@ -57,59 +57,346 @@
       "properties": {
         "publisherEmail": "[parameters('publisherEmail')]",
         "publisherName": "[parameters('publisherName')]"
+      }
+    },
+    {
+      "type": "Microsoft.ApiManagement/service/policies",
+      "apiVersion": "2019-01-01",
+      "name": "[format('{0}/policy', parameters('apimName'))]",
+      "properties": {
+        "value": "[format('{0}policies/global.xml{1}', parameters('templateUrl'), parameters('templateToken'))]",
+        "format": "rawxml-link"
       },
-      "resources": [
-        {
-          "name": "policy",
-          "type": "policies",
-          "apiVersion": "2019-01-01",
-          "properties": {
-            "value": "[concat(parameters('templateUrl'), 'policies/global.xml', parameters('templateToken'))]",
-            "format": "rawxml-link"
+      "dependsOn": [
+        "[resourceId('Microsoft.ApiManagement/service', parameters('apimName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-10-01",
+      "name": "apiUsersTemplate",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "apimName": {
+            "value": "[parameters('apimName')]"
           },
-          "dependsOn": [
-            "[parameters('apimName')]"
+          "templateUrl": {
+            "value": "[parameters('templateUrl')]"
+          },
+          "templateToken": {
+            "value": "[parameters('templateToken')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "apimName": {
+              "type": "string",
+              "metadata": {
+                "description": "API Management name."
+              }
+            },
+            "templateUrl": {
+              "type": "string",
+              "metadata": {
+                "description": "Storage account container base url for deployment templates"
+              }
+            },
+            "templateToken": {
+              "type": "secureString",
+              "metadata": {
+                "description": "Storage account access token for accessing templates"
+              }
+            },
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Location for all resources."
+              }
+            }
+          },
+          "functions": [],
+          "variables": {
+            "apiName": "users",
+            "apiPath": "users",
+            "logicAppKeyName": "users-logic-app-sig",
+            "logicAppBackendName": "usersLogicAppBackend",
+            "logicAppTemplate_var": "usersLogicAppBackendTemplate",
+            "apiResourceName_var": "[format('{0}/{1}', parameters('apimName'), variables('apiName'))]",
+            "apiResourceId": "[resourceId('Microsoft.ApiManagement/service/apis', parameters('apimName'), variables('apiName'))]",
+            "apiGetResourceName_var": "[format('{0}/get', variables('apiResourceName_var'))]",
+            "apiGetResourceId": "[resourceId('Microsoft.ApiManagement/service/apis/operations', parameters('apimName'), variables('apiName'), 'get')]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.ApiManagement/service/properties",
+              "apiVersion": "2019-01-01",
+              "name": "[format('{0}/{1}', parameters('apimName'), variables('logicAppKeyName'))]",
+              "properties": {
+                "secret": true,
+                "displayName": "[variables('logicAppKeyName')]",
+                "value": "[reference(extensionResourceId(resourceGroup().id, 'Microsoft.Resources/deployments', variables('logicAppTemplate_var')), '2019-10-01').outputs.sig.value]"
+              },
+              "dependsOn": [
+                "[extensionResourceId(resourceGroup().id, 'Microsoft.Resources/deployments', variables('logicAppTemplate_var'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis",
+              "apiVersion": "2019-01-01",
+              "name": "[variables('apiResourceName_var')]",
+              "properties": {
+                "displayName": "Users",
+                "description": "Users API - User validation service",
+                "path": "[variables('apiPath')]",
+                "subscriptionRequired": false,
+                "protocols": [
+                  "https"
+                ]
+              },
+              "dependsOn": [
+                "[extensionResourceId(resourceGroup().id, 'Microsoft.Resources/deployments', variables('logicAppTemplate_var'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/backends",
+              "apiVersion": "2019-01-01",
+              "name": "[format('{0}/{1}', parameters('apimName'), variables('logicAppBackendName'))]",
+              "properties": {
+                "description": "[reference(extensionResourceId(resourceGroup().id, 'Microsoft.Resources/deployments', variables('logicAppTemplate_var')), '2019-10-01').outputs.name.value]",
+                "resourceId": "[format('https://management.azure.com{0}', reference(extensionResourceId(resourceGroup().id, 'Microsoft.Resources/deployments', variables('logicAppTemplate_var')), '2019-10-01').outputs.logicApp.value)]",
+                "url": "[reference(extensionResourceId(resourceGroup().id, 'Microsoft.Resources/deployments', variables('logicAppTemplate_var')), '2019-10-01').outputs.endpoint.value]",
+                "protocol": "http"
+              },
+              "dependsOn": [
+                "[extensionResourceId(resourceGroup().id, 'Microsoft.Resources/deployments', variables('logicAppTemplate_var'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis/operations",
+              "apiVersion": "2018-01-01",
+              "name": "[variables('apiGetResourceName_var')]",
+              "properties": {
+                "displayName": "Validate user",
+                "method": "POST",
+                "urlTemplate": "/",
+                "templateParameters": [],
+                "description": "Validates user",
+                "responses": [
+                  {
+                    "statusCode": 200,
+                    "description": "OK",
+                    "headers": [],
+                    "representations": [
+                      {
+                        "contentType": "application/json",
+                        "sample": "{\r\n    \"summary\": \"User validated succesfully\"\r\n}"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis/operations/policies",
+              "apiVersion": "2019-01-01",
+              "name": "[format('{0}/policy', variables('apiGetResourceName_var'))]",
+              "properties": {
+                "value": "[format('{0}api/users/api-post.xml{1}', parameters('templateUrl'), parameters('templateToken'))]",
+                "format": "rawxml-link"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ApiManagement/service/apis/operations', split(variables('apiGetResourceName_var'), '/')[0], split(variables('apiGetResourceName_var'), '/')[1], split(variables('apiGetResourceName_var'), '/')[2])]",
+                "[resourceId('Microsoft.ApiManagement/service/backends', split(format('{0}/{1}', parameters('apimName'), variables('logicAppBackendName')), '/')[0], split(format('{0}/{1}', parameters('apimName'), variables('logicAppBackendName')), '/')[1])]",
+                "[resourceId('Microsoft.ApiManagement/service/properties', split(format('{0}/{1}', parameters('apimName'), variables('logicAppKeyName')), '/')[0], split(format('{0}/{1}', parameters('apimName'), variables('logicAppKeyName')), '/')[1])]"
+              ]
+            },
+            {
+              "type": "Microsoft.Resources/deployments",
+              "apiVersion": "2019-10-01",
+              "name": "[variables('logicAppTemplate_var')]",
+              "properties": {
+                "expressionEvaluationOptions": {
+                  "scope": "inner"
+                },
+                "mode": "Incremental",
+                "parameters": {
+                  "location": {
+                    "value": "[parameters('location')]"
+                  }
+                },
+                "template": {
+                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                  "contentVersion": "1.0.0.0",
+                  "parameters": {
+                    "location": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Location for all resources."
+                      }
+                    }
+                  },
+                  "functions": [],
+                  "variables": {
+                    "logicAppName_var": "users-handler"
+                  },
+                  "resources": [
+                    {
+                      "type": "Microsoft.Logic/workflows",
+                      "apiVersion": "2019-05-01",
+                      "name": "[variables('logicAppName_var')]",
+                      "location": "[parameters('location')]",
+                      "properties": {
+                        "state": "Enabled",
+                        "definition": {
+                          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                          "contentVersion": "1.0.0.0",
+                          "parameters": {},
+                          "triggers": {
+                            "manual": {
+                              "type": "Request",
+                              "kind": "Http",
+                              "inputs": {
+                                "schema": {
+                                  "properties": {
+                                    "address": {
+                                      "properties": {
+                                        "city": {
+                                          "type": "string"
+                                        },
+                                        "country": {
+                                          "type": "string"
+                                        },
+                                        "postalCode": {
+                                          "type": "string"
+                                        },
+                                        "street": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "type": "object"
+                                    },
+                                    "id": {
+                                      "type": "integer"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "type": "object"
+                                }
+                              }
+                            }
+                          },
+                          "actions": {
+                            "Condition": {
+                              "actions": {
+                                "Response": {
+                                  "runAfter": {},
+                                  "type": "Response",
+                                  "kind": "Http",
+                                  "inputs": {
+                                    "body": {
+                                      "summary": "User validated succesfully"
+                                    },
+                                    "headers": {
+                                      "X-UserValidation": "1"
+                                    },
+                                    "statusCode": 200
+                                  }
+                                }
+                              },
+                              "runAfter": {},
+                              "else": {
+                                "actions": {
+                                  "Response_2": {
+                                    "runAfter": {},
+                                    "type": "Response",
+                                    "kind": "Http",
+                                    "inputs": {
+                                      "body": {
+                                        "summary": "Validation failed"
+                                      },
+                                      "headers": {
+                                        "X-UserValidation": "0"
+                                      },
+                                      "statusCode": 200
+                                    }
+                                  }
+                                }
+                              },
+                              "expression": {
+                                "and": [
+                                  {
+                                    "equals": [
+                                      "@triggerBody()?['address']?['postalCode']",
+                                      "12345"
+                                    ]
+                                  }
+                                ]
+                              },
+                              "type": "If"
+                            }
+                          },
+                          "outputs": {}
+                        },
+                        "parameters": {}
+                      }
+                    }
+                  ],
+                  "outputs": {
+                    "name": {
+                      "type": "string",
+                      "value": "[variables('logicAppName_var')]"
+                    },
+                    "logicApp": {
+                      "type": "string",
+                      "value": "[resourceId('Microsoft.Logic/workflows', variables('logicAppName_var'))]"
+                    },
+                    "sig": {
+                      "type": "string",
+                      "value": "[listCallbackURL(format('{0}/triggers/manual', resourceId('Microsoft.Logic/workflows', variables('logicAppName_var'))), '2019-05-01').queries.sig]"
+                    },
+                    "endpoint": {
+                      "type": "string",
+                      "value": "[format('{0}/triggers', reference(resourceId('Microsoft.Logic/workflows', variables('logicAppName_var'))).accessEndpoint)]"
+                    },
+                    "fullLogicAppObject": {
+                      "type": "object",
+                      "value": "[reference(resourceId('Microsoft.Logic/workflows', variables('logicAppName_var')), '2019-05-01', 'Full')]"
+                    },
+                    "fullListCallbackURLObject": {
+                      "type": "object",
+                      "value": "[listCallbackURL(format('{0}/triggers/manual', resourceId('Microsoft.Logic/workflows', variables('logicAppName_var'))), '2019-05-01')]"
+                    }
+                  }
+                }
+              }
+            }
           ]
         }
-      ]
-    },
-    {
-      "name": "apiUsersTemplate",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2019-10-01",
-      "properties": {
-        "mode": "Incremental",
-        "templateLink": {
-          "uri": "[concat(parameters('templateUrl'), 'api/users/api.json', parameters('templateToken'))]"
-        },
-        "parameters": {
-          "apimName": {
-            "value": "[parameters('apimName')]"
-          },
-          "templateUrl": {
-            "value": "[parameters('templateUrl')]"
-          },
-          "templateToken": {
-            "value": "[parameters('templateToken')]"
-          },
-          "location": {
-            "value": "[parameters('location')]"
-          }
-        }
       },
       "dependsOn": [
-        "[parameters('apimName')]"
+        "[resourceId('Microsoft.ApiManagement/service', parameters('apimName'))]"
       ]
     },
     {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-10-01",
       "name": "apiProductsTemplate",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2019-10-01",
       "properties": {
-        "mode": "Incremental",
-        "templateLink": {
-          "uri": "[concat(parameters('templateUrl'), 'api/products/api.json', parameters('templateToken'))]"
+        "expressionEvaluationOptions": {
+          "scope": "inner"
         },
+        "mode": "Incremental",
         "parameters": {
           "apimName": {
             "value": "[parameters('apimName')]"
@@ -123,10 +410,221 @@
           "location": {
             "value": "[parameters('location')]"
           }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "apimName": {
+              "type": "string",
+              "metadata": {
+                "description": "API Management name."
+              }
+            },
+            "templateUrl": {
+              "type": "string",
+              "metadata": {
+                "description": "Storage account container base url for deployment templates"
+              }
+            },
+            "templateToken": {
+              "type": "secureString",
+              "metadata": {
+                "description": "Storage account access token for accessing templates"
+              }
+            },
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Location for all resources."
+              }
+            }
+          },
+          "functions": [],
+          "variables": {
+            "apiName": "products",
+            "apiPath": "products",
+            "logicAppKeyName": "products-logic-app-sig",
+            "logicAppBackendName": "productsLogicAppBackend",
+            "logicAppTemplate_var": "productsLogicAppBackendTemplate",
+            "apiResourceName_var": "[format('{0}/{1}', parameters('apimName'), variables('apiName'))]",
+            "apiGetResourceId": "[resourceId('Microsoft.ApiManagement/service/apis/operations', parameters('apimName'), variables('apiName'), 'get')]",
+            "apiGetResourcePolicyName_var": "[format('{0}/{1}/get/policy', parameters('apimName'), variables('apiName'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.ApiManagement/service/properties",
+              "apiVersion": "2019-01-01",
+              "name": "[format('{0}/{1}', parameters('apimName'), variables('logicAppKeyName'))]",
+              "properties": {
+                "secret": true,
+                "displayName": "[variables('logicAppKeyName')]",
+                "value": "[reference(extensionResourceId(resourceGroup().id, 'Microsoft.Resources/deployments', variables('logicAppTemplate_var')), '2019-10-01').outputs.sig.value]"
+              },
+              "dependsOn": [
+                "[extensionResourceId(resourceGroup().id, 'Microsoft.Resources/deployments', variables('logicAppTemplate_var'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis",
+              "apiVersion": "2019-01-01",
+              "name": "[variables('apiResourceName_var')]",
+              "properties": {
+                "displayName": "Products",
+                "description": "Products API - Product validation service",
+                "path": "[variables('apiPath')]",
+                "subscriptionRequired": false,
+                "protocols": [
+                  "https"
+                ],
+                "value": "[format('{0}api/products/products.yaml{1}', parameters('templateUrl'), parameters('templateToken'))]",
+                "format": "openapi-link",
+                "apiType": "http"
+              },
+              "dependsOn": [
+                "[extensionResourceId(resourceGroup().id, 'Microsoft.Resources/deployments', variables('logicAppTemplate_var'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/backends",
+              "apiVersion": "2019-01-01",
+              "name": "[format('{0}/{1}', parameters('apimName'), variables('logicAppBackendName'))]",
+              "properties": {
+                "description": "[reference(extensionResourceId(resourceGroup().id, 'Microsoft.Resources/deployments', variables('logicAppTemplate_var')), '2019-10-01').outputs.name.value]",
+                "resourceId": "[format('https://management.azure.com{0}', reference(extensionResourceId(resourceGroup().id, 'Microsoft.Resources/deployments', variables('logicAppTemplate_var')), '2019-10-01').outputs.logicApp.value)]",
+                "url": "[reference(extensionResourceId(resourceGroup().id, 'Microsoft.Resources/deployments', variables('logicAppTemplate_var')), '2019-10-01').outputs.endpoint.value]",
+                "protocol": "http"
+              },
+              "dependsOn": [
+                "[extensionResourceId(resourceGroup().id, 'Microsoft.Resources/deployments', variables('logicAppTemplate_var'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.ApiManagement/service/apis/operations/policies",
+              "apiVersion": "2019-01-01",
+              "name": "[variables('apiGetResourcePolicyName_var')]",
+              "properties": {
+                "value": "[format('{0}api/products/api-get.xml{1}', parameters('templateUrl'), parameters('templateToken'))]",
+                "format": "rawxml-link"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ApiManagement/service/backends', split(format('{0}/{1}', parameters('apimName'), variables('logicAppBackendName')), '/')[0], split(format('{0}/{1}', parameters('apimName'), variables('logicAppBackendName')), '/')[1])]",
+                "[resourceId('Microsoft.ApiManagement/service/properties', split(format('{0}/{1}', parameters('apimName'), variables('logicAppKeyName')), '/')[0], split(format('{0}/{1}', parameters('apimName'), variables('logicAppKeyName')), '/')[1])]"
+              ]
+            },
+            {
+              "type": "Microsoft.Resources/deployments",
+              "apiVersion": "2019-10-01",
+              "name": "[variables('logicAppTemplate_var')]",
+              "properties": {
+                "expressionEvaluationOptions": {
+                  "scope": "inner"
+                },
+                "mode": "Incremental",
+                "parameters": {
+                  "location": {
+                    "value": "[parameters('location')]"
+                  }
+                },
+                "template": {
+                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                  "contentVersion": "1.0.0.0",
+                  "parameters": {
+                    "location": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Location for all resources."
+                      }
+                    }
+                  },
+                  "functions": [],
+                  "variables": {
+                    "logicAppName_var": "products-handler"
+                  },
+                  "resources": [
+                    {
+                      "type": "Microsoft.Logic/workflows",
+                      "apiVersion": "2019-05-01",
+                      "name": "[variables('logicAppName_var')]",
+                      "location": "[parameters('location')]",
+                      "properties": {
+                        "state": "Enabled",
+                        "definition": {
+                          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                          "contentVersion": "1.0.0.0",
+                          "parameters": {},
+                          "triggers": {
+                            "manual": {
+                              "type": "Request",
+                              "kind": "Http",
+                              "inputs": {
+                                "schema": {}
+                              }
+                            }
+                          },
+                          "actions": {
+                            "Response": {
+                              "runAfter": {},
+                              "type": "Response",
+                              "kind": "Http",
+                              "inputs": {
+                                "body": [
+                                  {
+                                    "id": 1,
+                                    "name": "Product 1"
+                                  },
+                                  {
+                                    "id": 2,
+                                    "name": "Product 2"
+                                  }
+                                ],
+                                "headers": {
+                                  "Content-type": "application/json"
+                                },
+                                "statusCode": 200
+                              }
+                            }
+                          },
+                          "outputs": {}
+                        },
+                        "parameters": {}
+                      }
+                    }
+                  ],
+                  "outputs": {
+                    "name": {
+                      "type": "string",
+                      "value": "[variables('logicAppName_var')]"
+                    },
+                    "logicApp": {
+                      "type": "string",
+                      "value": "[resourceId('Microsoft.Logic/workflows', variables('logicAppName_var'))]"
+                    },
+                    "sig": {
+                      "type": "string",
+                      "value": "[listCallbackURL(format('{0}/triggers/manual', resourceId('Microsoft.Logic/workflows', variables('logicAppName_var'))), '2019-05-01').queries.sig]"
+                    },
+                    "endpoint": {
+                      "type": "string",
+                      "value": "[format('{0}/triggers', reference(resourceId('Microsoft.Logic/workflows', variables('logicAppName_var'))).accessEndpoint)]"
+                    },
+                    "fullLogicAppObject": {
+                      "type": "object",
+                      "value": "[reference(resourceId('Microsoft.Logic/workflows', variables('logicAppName_var')), '2019-05-01', 'Full')]"
+                    },
+                    "fullListCallbackURLObject": {
+                      "type": "object",
+                      "value": "[listCallbackURL(format('{0}/triggers/manual', resourceId('Microsoft.Logic/workflows', variables('logicAppName_var'))), '2019-05-01')]"
+                    }
+                  }
+                }
+              }
+            }
+          ]
         }
       },
       "dependsOn": [
-        "[parameters('apimName')]"
+        "[resourceId('Microsoft.ApiManagement/service', parameters('apimName'))]"
       ]
     }
   ],

@@ -23,17 +23,6 @@ param location string {
   }
   default: resourceGroup().location
 }
-param sharedTemplatesUrl string {
-  metadata: {
-    description: 'Storage account container base url for deployment templates'
-  }
-}
-param sharedTemplatesToken string {
-  metadata: {
-    description: 'Storage account access token for accessing templates'
-  }
-  secure: true
-}
 param templateUrl string {
   metadata: {
     description: 'Storage account container base url for deployment templates'

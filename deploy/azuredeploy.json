@@ -3,45 +3,29 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "apimName": {
-      "type": "string",
-      "metadata": {
-        "description": "API Management name."
-      }
+      "type": "string"
     },
-    "publisherEmail": {
+    "apimPublisherEmail": {
       "type": "string",
-      "minLength": 1,
-      "metadata": {
-        "description": "The email address of the owner of the service"
-      },
       "defaultValue": "admin@contoso.com"
     },
-    "publisherName": {
+    "apimPublisherName": {
       "type": "string",
-      "minLength": 1,
-      "metadata": {
-        "description": "The name of the owner of the service"
-      },
       "defaultValue": "Contoso"
+    },
+    "apimPricingTier": {
+      "type": "string",
+      "defaultValue": "Consumption"
     },
     "location": {
       "type": "string",
-      "metadata": {
-        "description": "Location for all resources."
-      },
       "defaultValue": "[resourceGroup().location]"
     },
     "templateUrl": {
-      "type": "string",
-      "metadata": {
-        "description": "Storage account container base url for deployment templates"
-      }
+      "type": "string"
     },
     "templateToken": {
-      "type": "secureString",
-      "metadata": {
-        "description": "Storage account access token for accessing templates"
-      }
+      "type": "secureString"
     }
   },
   "functions": [],
@@ -52,11 +36,11 @@
       "name": "[parameters('apimName')]",
       "location": "[parameters('location')]",
       "sku": {
-        "name": "Consumption"
+        "name": "[parameters('apimPricingTier')]"
       },
       "properties": {
-        "publisherEmail": "[parameters('publisherEmail')]",
-        "publisherName": "[parameters('publisherName')]"
+        "publisherEmail": "[parameters('apimPublisherEmail')]",
+        "publisherName": "[parameters('apimPublisherName')]"
       }
     },
     {
@@ -99,28 +83,17 @@
           "contentVersion": "1.0.0.0",
           "parameters": {
             "apimName": {
-              "type": "string",
-              "metadata": {
-                "description": "API Management name."
-              }
-            },
-            "templateUrl": {
-              "type": "string",
-              "metadata": {
-                "description": "Storage account container base url for deployment templates"
-              }
-            },
-            "templateToken": {
-              "type": "secureString",
-              "metadata": {
-                "description": "Storage account access token for accessing templates"
-              }
+              "type": "string"
             },
             "location": {
               "type": "string",
-              "metadata": {
-                "description": "Location for all resources."
-              }
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "templateUrl": {
+              "type": "string"
+            },
+            "templateToken": {
+              "type": "secureString"
             }
           },
           "functions": [],
@@ -416,28 +389,17 @@
           "contentVersion": "1.0.0.0",
           "parameters": {
             "apimName": {
-              "type": "string",
-              "metadata": {
-                "description": "API Management name."
-              }
-            },
-            "templateUrl": {
-              "type": "string",
-              "metadata": {
-                "description": "Storage account container base url for deployment templates"
-              }
-            },
-            "templateToken": {
-              "type": "secureString",
-              "metadata": {
-                "description": "Storage account access token for accessing templates"
-              }
+              "type": "string"
             },
             "location": {
               "type": "string",
-              "metadata": {
-                "description": "Location for all resources."
-              }
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "templateUrl": {
+              "type": "string"
+            },
+            "templateToken": {
+              "type": "secureString"
             }
           },
           "functions": [],

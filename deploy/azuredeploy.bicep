@@ -1,54 +1,32 @@
-param apimName string {
-  metadata: {
-    description: 'API Management name.'
-  }
-}
-param publisherEmail string {
-  minLength: 1
-  metadata: {
-    description: 'The email address of the owner of the service'
-  }
-  default: 'admin@contoso.com'
-}
-param publisherName string {
-  minLength: 1
-  metadata: {
-    description: 'The name of the owner of the service'
-  }
-  default: 'Contoso'
-}
-param location string {
-  metadata: {
-    description: 'Location for all resources.'
-  }
-  default: resourceGroup().location
-}
-param templateUrl string {
-  metadata: {
-    description: 'Storage account container base url for deployment templates'
-  }
-}
+param apimName string
+param apimPublisherEmail string = 'admin@contoso.com'
+param apimPublisherName string = 'Contoso'
+param apimPricingTier string = 'Consumption'
+
+param location string = resourceGroup().location
+
+// Storage account container base url for deployment templates
+param templateUrl string
+
+// Storage account access token for accessing templates
 param templateToken string {
-  metadata: {
-    description: 'Storage account access token for accessing templates'
-  }
   secure: true
 }
 
-resource apimName_resource 'Microsoft.ApiManagement/service@2019-01-01' = {
+resource apimNameResource 'Microsoft.ApiManagement/service@2019-01-01' = {
   name: apimName
   location: location
   sku: {
-    name: 'Consumption'
+    name: apimPricingTier
   }
   properties: {
-    publisherEmail: publisherEmail
-    publisherName: publisherName
+    publisherEmail: apimPublisherEmail
+    publisherName: apimPublisherName
   }
 }
 
-resource apimName_policy 'Microsoft.ApiManagement/service/policies@2019-01-01' = {
-  name: '${apimName_resource.name}/policy'
+resource apimGlobalpolicy 'Microsoft.ApiManagement/service/policies@2019-01-01' = {
+  name: '${apimNameResource.name}/policy'
   properties: {
     value: '${templateUrl}policies/global.xml${templateToken}'
     format: 'rawxml-link'
@@ -64,7 +42,7 @@ module apiUsersTemplate './api/users/api.bicep' = {
     location: location
   }
   dependsOn: [
-    apimName_resource
+    apimNameResource
   ]
 }
 
@@ -77,8 +55,8 @@ module apiProductsTemplate './api/products/api.bicep' = {
     location: location
   }
   dependsOn: [
-    apimName_resource
+    apimNameResource
   ]
 }
 
-output apimGateway string = apimName_resource.properties.gatewayUrl
+output apimGateway string = apimNameResource.properties.gatewayUrl

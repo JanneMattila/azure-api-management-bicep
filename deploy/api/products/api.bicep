@@ -1,23 +1,12 @@
-param apimName string {
-  metadata: {
-    description: 'API Management name.'
-  }
-}
-param templateUrl string {
-  metadata: {
-    description: 'Storage account container base url for deployment templates'
-  }
-}
+param apimName string
+param location string = resourceGroup().location
+
+// Storage account container base url for deployment templates
+param templateUrl string
+
+// Storage account access token for accessing templates
 param templateToken string {
-  metadata: {
-    description: 'Storage account access token for accessing templates'
-  }
   secure: true
-}
-param location string {
-  metadata: {
-    description: 'Location for all resources.'
-  }
 }
 
 var apiName = 'products'

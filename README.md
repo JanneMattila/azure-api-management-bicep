@@ -67,9 +67,11 @@ e.g. `openapi-link` in below example:
 }
 ```
 
-Above is not _yet_ supported in directly in Bicep using `includeFile()` (or similar command)
+Above is not _yet_ supported  directly in Bicep using `includeFile()` (or similar command)
 for including these directly from local filesystem, but it's tracked in here:
-[Bicep Issue #471](https://github.com/Azure/bicep/issues/471).
+[Bicep Issue #471](https://github.com/Azure/bicep/issues/471). Therefore we have
+to still use [linked templates](https://docs.microsoft.com/en-us/azure/azure-resource-manager/templates/linked-templates)
+and storage account for hosting those files.
 
 ----
 

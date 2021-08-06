@@ -1,7 +1,5 @@
 # Azure API Management with Bicep
 
-**This demo is still work-in-progress**
-
 This repository tries to illustrate *one way* of working with
 Azure API Management by leveraging Bicep as the Infrastructure-as-Code approach.
 

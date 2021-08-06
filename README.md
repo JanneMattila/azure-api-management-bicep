@@ -54,8 +54,8 @@ Now you can use decompiled content in your `deploy` resources.
 e.g. `openapi` for defining the APIs:
 
 ```bicep
-resource apiResourceName 'Microsoft.ApiManagement/service/apis@2020-12-01' = {
-  name: apiResourceName_var
+resource apiResource 'Microsoft.ApiManagement/service/apis@2020-12-01' = {
+  name: apiResourceName
   properties: {
     // ...
     value: loadTextContent('./products.yaml')

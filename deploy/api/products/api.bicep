@@ -1,31 +1,23 @@
 param apimName string
-param location string = resourceGroup().location
-
-// Storage account container base url for deployment templates
-param templateUrl string
-
-// Storage account access token for accessing templates
-param templateToken string {
-  secure: true
-}
 
 var apiName = 'products'
 var apiPath = 'products'
 var logicAppKeyName = 'products-logic-app-sig'
 var logicAppBackendName = 'productsLogicAppBackend'
-var logicAppTemplate_var = 'productsLogicAppBackendTemplate'
-var apiResourceName_var = '${apimName}/${apiName}'
-var apiGetResourceId = resourceId('Microsoft.ApiManagement/service/apis/operations', apimName, apiName, 'get')
-var apiGetResourcePolicyName_var = '${apimName}/${apiName}/get/policy'
+var logicAppTemplateName = 'productsLogicAppBackendTemplate'
 
-module logicAppTemplate './logicapp.bicep' = {
-  name: logicAppTemplate_var
+resource apim 'Microsoft.ApiManagement/service@2020-12-01' existing = {
+  name: apimName
+}
+
+module logicAppTemplate './logicapp.json' = {
+  name: logicAppTemplateName
   params: {
-    location: location
+    location: apim.location
   }
 }
 
-resource apimName_logicAppKeyName 'Microsoft.ApiManagement/service/properties@2019-01-01' = {
+resource logicAppKey 'Microsoft.ApiManagement/service/properties@2019-01-01' = {
   name: '${apimName}/${logicAppKeyName}'
   properties: {
     secret: true
@@ -34,8 +26,8 @@ resource apimName_logicAppKeyName 'Microsoft.ApiManagement/service/properties@20
   }
 }
 
-resource apiResourceName 'Microsoft.ApiManagement/service/apis@2019-01-01' = {
-  name: apiResourceName_var
+resource apiResource 'Microsoft.ApiManagement/service/apis@2020-12-01' = {
+  name: '${apimName}/${apiName}'
   properties: {
     displayName: 'Products'
     description: 'Products API - Product validation service'
@@ -44,8 +36,8 @@ resource apiResourceName 'Microsoft.ApiManagement/service/apis@2019-01-01' = {
     protocols: [
       'https'
     ]
-    value: '${templateUrl}api/products/products.yaml${templateToken}'
-    format: 'openapi-link'
+    value: loadTextContent('./products.yaml')
+    format: 'openapi'
     apiType: 'http'
   }
   dependsOn: [
@@ -53,25 +45,25 @@ resource apiResourceName 'Microsoft.ApiManagement/service/apis@2019-01-01' = {
   ]
 }
 
-resource apimName_logicAppBackendName 'Microsoft.ApiManagement/service/backends@2019-01-01' = {
+resource logicAppBackend 'Microsoft.ApiManagement/service/backends@2020-12-01' = {
   name: '${apimName}/${logicAppBackendName}'
   properties: {
     description: logicAppTemplate.outputs.name
-    resourceId: 'https://management.azure.com${logicAppTemplate.outputs.logicApp}'
+    resourceId: '${environment().resourceManager}${logicAppTemplate.outputs.logicApp}'
     url: logicAppTemplate.outputs.endpoint
     protocol: 'http'
   }
 }
 
-resource apiGetResourcePolicyName 'Microsoft.ApiManagement/service/apis/operations/policies@2019-01-01' = {
-  name: apiGetResourcePolicyName_var
+resource apiGetResourcePolicy 'Microsoft.ApiManagement/service/apis/operations/policies@2020-12-01' = {
+  name: '${apimName}/${apiName}/get/policy'
   properties: {
-    value: '${templateUrl}api/products/api-get.xml${templateToken}'
-    format: 'rawxml-link'
+    value: loadTextContent('./api-get.xml')
+    format: 'rawxml'
   }
   dependsOn: [
-    resourceId('Microsoft.ApiManagement/service/apis', apimName, apiName)
-    apimName_logicAppKeyName
-    apimName_logicAppBackendName
+    apim
+    logicAppKey
+    logicAppBackend
   ]
 }

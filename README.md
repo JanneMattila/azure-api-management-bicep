@@ -52,28 +52,21 @@ Now you can use decompiled content in your `deploy` resources.
 
 ----
 
-**Note**: In this demo we rely heavily on using external files
-e.g. `openapi-link` in below example:
+**Note**: In this demo we rely heavily on using additional files
+e.g. `openapi` for defining the APIs:
 
-```json
-{
-  "name": "[variables('apiResourceName')]",
-  "type": "Microsoft.ApiManagement/service/apis",
-  "apiVersion": "2019-01-01",
-  "properties": {
-    // external file->
-    "value": "[concat(parameters('templateUrl'), 'api/products/products.yaml', parameters('templateToken'))]",
-    "format": "openapi-link",
-    "apiType": "http"
+```bicep
+resource apiResourceName 'Microsoft.ApiManagement/service/apis@2020-12-01' = {
+  name: apiResourceName_var
+  properties: {
+    // ...
+    value: loadTextContent('./products.yaml')
+    format: 'openapi'
   }
 }
 ```
 
-Above is not _yet_ supported  directly in Bicep using `includeFile()` (or similar command)
-for including these directly from local filesystem, but it's tracked in here:
-[Bicep Issue #471](https://github.com/Azure/bicep/issues/471). Therefore we have
-to still use [linked templates](https://docs.microsoft.com/en-us/azure/azure-resource-manager/templates/linked-templates)
-and storage account for hosting those files.
+Above is extremely handy feature and enables you to include files as you need.
 
 ----
 

@@ -1,32 +1,27 @@
 param apimName string
-param location string = resourceGroup().location
-
-// Storage account container base url for deployment templates
-param templateUrl string
-
-// Storage account access token for accessing templates
-param templateToken string {
-  secure: true
-}
 
 var apiName = 'users'
 var apiPath = 'users'
 var logicAppKeyName = 'users-logic-app-sig'
 var logicAppBackendName = 'usersLogicAppBackend'
-var logicAppTemplate_var = 'usersLogicAppBackendTemplate'
-var apiResourceName_var = '${apimName}/${apiName}'
-var apiResourceId = resourceId('Microsoft.ApiManagement/service/apis', apimName, apiName)
-var apiGetResourceName_var = '${apiResourceName_var}/get'
-var apiGetResourceId = resourceId('Microsoft.ApiManagement/service/apis/operations', apimName, apiName, 'get')
+var logicAppTemplateName = 'usersLogicAppBackendTemplate'
 
-module logicAppTemplate './logicapp.bicep' = {
-  name: logicAppTemplate_var
+resource apim 'Microsoft.ApiManagement/service@2020-12-01' existing = {
+  name: apimName
+}
+
+resource apiGet 'Microsoft.ApiManagement/service/apis/operations@2020-12-01' existing = {
+  name: '${apimName}/${apiName}/get'
+}
+
+module logicAppTemplate './logicapp.json' = {
+  name: logicAppTemplateName
   params: {
-    location: location
+    location: apim.location
   }
 }
 
-resource apimName_logicAppKeyName 'Microsoft.ApiManagement/service/properties@2019-01-01' = {
+resource logicAppKey 'Microsoft.ApiManagement/service/properties@2019-01-01' = {
   name: '${apimName}/${logicAppKeyName}'
   properties: {
     secret: true
@@ -35,8 +30,8 @@ resource apimName_logicAppKeyName 'Microsoft.ApiManagement/service/properties@20
   }
 }
 
-resource apiResourceName 'Microsoft.ApiManagement/service/apis@2019-01-01' = {
-  name: apiResourceName_var
+resource apiResource 'Microsoft.ApiManagement/service/apis@2020-12-01' = {
+  name: '${apimName}/${apiName}'
   properties: {
     displayName: 'Users'
     description: 'Users API - User validation service'
@@ -51,18 +46,18 @@ resource apiResourceName 'Microsoft.ApiManagement/service/apis@2019-01-01' = {
   ]
 }
 
-resource apimName_logicAppBackendName 'Microsoft.ApiManagement/service/backends@2019-01-01' = {
+resource logicAppBackend 'Microsoft.ApiManagement/service/backends@2020-12-01' = {
   name: '${apimName}/${logicAppBackendName}'
   properties: {
     description: logicAppTemplate.outputs.name
-    resourceId: 'https://management.azure.com${logicAppTemplate.outputs.logicApp}'
+    resourceId: '${environment().resourceManager}${logicAppTemplate.outputs.logicApp}'
     url: logicAppTemplate.outputs.endpoint
     protocol: 'http'
   }
 }
 
-resource apiGetResourceName 'Microsoft.ApiManagement/service/apis/operations@2018-01-01' = {
-  name: apiGetResourceName_var
+resource apiGetResource 'Microsoft.ApiManagement/service/apis/operations@2020-12-01' = {
+  name: '${apimName}/${apiName}/get'
   properties: {
     displayName: 'Validate user'
     method: 'POST'
@@ -84,19 +79,19 @@ resource apiGetResourceName 'Microsoft.ApiManagement/service/apis/operations@201
     ]
   }
   dependsOn: [
-    apiResourceId
+    apiResource
   ]
 }
 
-resource apiGetResourceName_policy 'Microsoft.ApiManagement/service/apis/operations/policies@2019-01-01' = {
-  name: '${apiGetResourceName.name}/policy'
+resource apiGetResourcePolicy 'Microsoft.ApiManagement/service/apis/operations/policies@2020-12-01' = {
+  name: '${apiGetResource.name}/policy'
   properties: {
-    value: '${templateUrl}api/users/api-post.xml${templateToken}'
-    format: 'rawxml-link'
+    value: loadTextContent('./api-post.xml')
+    format: 'rawxml'
   }
   dependsOn: [
-    apiGetResourceId
-    apimName_logicAppKeyName
-    apimName_logicAppBackendName
+    apiGet
+    logicAppKey
+    logicAppBackend
   ]
 }

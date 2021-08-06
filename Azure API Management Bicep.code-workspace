@@ -4,5 +4,13 @@
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {},
+	"extensions": {
+		"recommendations": [
+			"ms-azuretools.vscode-bicep",
+			"ms-azuretools.vscode-apimanagement",
+			"humao.rest-client",
+			"ms-vscode.powershell"
+		]
+	}
 }

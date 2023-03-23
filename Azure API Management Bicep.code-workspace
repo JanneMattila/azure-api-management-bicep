@@ -7,6 +7,7 @@
 	"settings": {},
 	"extensions": {
 		"recommendations": [
+			"msazurermtools.azurerm-vscode-tools",
 			"ms-azuretools.vscode-bicep",
 			"ms-azuretools.vscode-apimanagement",
 			"humao.rest-client",

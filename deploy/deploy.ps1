@@ -8,7 +8,7 @@ Param (
     [Parameter(HelpMessage = "API Management Name")] 
     [string] $APIMName = "contosoapim4-local",
 
-    [string] $Template = "azuredeploy.json",
+    [string] $Template = "azuredeploy.bicep",
     [string] $TemplateParameters = "$PSScriptRoot\azuredeploy.parameters.json",
     [switch] $PreserveDeploymentContainer
 )
